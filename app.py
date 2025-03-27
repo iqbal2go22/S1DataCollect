@@ -130,10 +130,10 @@ def login_page():
         st.info("If you're a vendor, please use the link provided to you by email.")
         
         # Check if URL contains vendor and token params
-        query_params = st.experimental_get_query_params()
+        query_params = st.query_params
         if "vendor" in query_params and "token" in query_params:
-            vendor_id = query_params["vendor"][0]
-            token = query_params["token"][0]
+            vendor_id = query_params["vendor"]
+            token = query_params["token"]
             
             vendors_df = load_vendors_data()
             if vendor_id in vendors_df["VendorID"].values:
