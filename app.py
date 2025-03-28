@@ -10,7 +10,7 @@ import time
 
 st.set_page_config(page_title="Product Origin Data Collection", page_icon="🌍", layout="wide")
 
-# Global styling
+# Style
 st.markdown("""
     <style>
         div[data-testid="column"] > div {
@@ -38,7 +38,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-# Session state
+# Session state init
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "current_vendor" not in st.session_state:
@@ -50,7 +50,7 @@ if "vendor_df" not in st.session_state:
 if "vendor_name" not in st.session_state:
     st.session_state.vendor_name = ""
 
-# Google Sheets connection
+# Connect to Google Sheets
 def get_google_sheets_connection():
     try:
         credentials = Credentials.from_service_account_info(
@@ -65,43 +65,49 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
-# Vendor dashboard
+# Vendor Dashboard
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
 
-    # Only load data if it's not already loaded
     if st.session_state.vendor_df is None:
-        with st.spinner("Loading products..."):
-            client = get_google_sheets_connection()
-            if not client:
-                return
+        client = get_google_sheets_connection()
+        if not client:
+            return
 
-            spreadsheet = client.open(st.secrets["spreadsheet_name"])
-            worksheet = spreadsheet.worksheet("Sheet1")
-            data = worksheet.get_all_records()
-            if not data:
-                st.warning("Sheet1 is empty.")
-                return
+        spreadsheet = client.open(st.secrets["spreadsheet_name"])
+        worksheet = spreadsheet.worksheet("Sheet1")
+        data = worksheet.get_all_records()
+        if not data:
+            st.warning("Sheet1 is empty.")
+            return
 
-            df = pd.DataFrame(data)
-            df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
-            vendor_df = df[df["PrimaryVendorNumber"] == vendor_id].copy()
+        df = pd.DataFrame(data)
+        df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
+        vendor_df = df[df["PrimaryVendorNumber"] == vendor_id].copy()
 
-            if vendor_df.empty:
-                st.warning(f"No products found for Vendor ID '{vendor_id}'")
-                return
+        if vendor_df.empty:
+            st.warning(f"No products found for Vendor ID '{vendor_id}'")
+            return
 
-            st.session_state.vendor_df = vendor_df.reset_index(drop=True)
-            st.session_state.worksheet = worksheet
-            st.session_state.headers = worksheet.row_values(1)
-            st.session_state.vendor_name = vendor_df.iloc[0].get("PrimaryVendorName", f"Vendor {vendor_id}")
-            time.sleep(1)
+        vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
 
-        st.success(f"✅ Loaded {len(st.session_state.vendor_df)} items successfully!")
+        # Progress bar
+        progress_text = "Loading items..."
+        progress_bar = st.progress(0, text=progress_text)
+        for i in range(len(vendor_df)):
+            time.sleep(0.01)
+            progress_bar.progress((i + 1) / len(vendor_df), text=progress_text)
+
+        time.sleep(0.3)
+        progress_bar.empty()
+        st.success(f"✅ Loaded {len(vendor_df)} items successfully!")
+
+        st.session_state.vendor_df = vendor_df
+        st.session_state.worksheet = worksheet
+        st.session_state.headers = worksheet.row_values(1)
+        st.session_state.vendor_name = vendor_df.iloc[0].get("PrimaryVendorName", f"Vendor {vendor_id}")
 
     st.title(f"{st.session_state.vendor_name} ({vendor_id})")
-    st.markdown("Please complete the form and email the saved CSV file back to **tmunshi@siteone.com**.")
-    st.markdown("---")
 
     st.markdown("""
     **Instructions:**
@@ -116,47 +122,22 @@ def vendor_dashboard(vendor_id):
     dropdown_options = ["Select..."] + all_countries
 
     # Header
-    cols = st.columns([0.5, 1, 1, 2.5, 2.5, 2, 1])
-    with cols[0]: st.markdown("**✓**")
-    with cols[1]: st.markdown("**SKU**")
-    with cols[2]: st.markdown("**Item #**")
-    with cols[3]: st.markdown("**Product Name**")
-    with cols[4]: st.markdown("**Country of Origin**")
-    with cols[5]: st.markdown("**HTS Code**")
-    with cols[6]: st.markdown("**Image**")
+    cols = st.columns([1, 2.5, 1, 1.2, 2.5, 2, 1])
+    with cols[0]: st.markdown("**Image**")
+    with cols[1]: st.markdown("**Taxonomy**")
+    with cols[2]: st.markdown("**SKU**")
+    with cols[3]: st.markdown("**Item #**")
+    with cols[4]: st.markdown("**Product Name**")
+    with cols[5]: st.markdown("**Country of Origin**")
+    with cols[6]: st.markdown("**HTS Code**")
 
-    # Render items
     updated_df = st.session_state.vendor_df.copy()
     rows_to_keep = []
 
     for i, row in updated_df.iterrows():
-        cols = st.columns([0.5, 1, 1, 2.5, 2.5, 2, 1])
+        cols = st.columns([1, 2.5, 1, 1.2, 2.5, 2, 1])
 
         with cols[0]:
-            submit_box = st.checkbox("", key=f"submit_{i}")
-
-        with cols[1]: st.markdown(str(row.get("SKUID", "")))
-        with cols[2]: st.markdown(str(row.get("SiteOneItemNumber", "")))
-        with cols[3]: st.markdown(str(row.get("ProductName", "")))
-
-        with cols[4]:
-            country = st.selectbox(
-                label="",
-                options=dropdown_options,
-                index=0,
-                key=f"country_{i}"
-            )
-
-        with cols[5]:
-            hts = st.text_input(
-                label="",
-                value="",
-                max_chars=10,
-                key=f"hts_{i}",
-                help="Enter 10-digit HTS Code"
-            )
-
-        with cols[6]:
             img_url = row.get("ImageURL", "").strip()
             if img_url:
                 try:
@@ -171,13 +152,35 @@ def vendor_dashboard(vendor_id):
             else:
                 st.markdown("No Image")
 
-        if submit_box:
+        with cols[1]: st.markdown(row.get("Taxonomy", ""))
+        with cols[2]: st.markdown(str(row.get("SKUID", "")))
+        with cols[3]: st.markdown(str(row.get("SiteOneItemNumber", "")))
+        with cols[4]: st.markdown(str(row.get("ProductName", "")))
+
+        with cols[5]:
+            country = st.selectbox(
+                label="",
+                options=dropdown_options,
+                index=0,
+                key=f"country_{i}"
+            )
+
+        with cols[6]:
+            hts = st.text_input(
+                label="",
+                value="",
+                key=f"hts_{i}",
+                max_chars=10,
+                help="Enter 10-digit HTS Code"
+            )
+
+        if st.button("Submit", key=f"submit_{i}"):
             if country == "Select...":
                 st.warning(f"Please select country for SKU {row['SKUID']}")
                 rows_to_keep.append(row)
                 continue
             if not hts.isdigit() or len(hts) != 10:
-                st.warning(f"HTS Code for SKU {row['SKUID']} must be exactly 10 digits")
+                st.warning(f"HTS Code for SKU {row['SKUID']} must be 10 digits")
                 rows_to_keep.append(row)
                 continue
 
@@ -194,8 +197,32 @@ def vendor_dashboard(vendor_id):
         else:
             rows_to_keep.append(row)
 
-    # Update session state with remaining rows
     st.session_state.vendor_df = pd.DataFrame(rows_to_keep).reset_index(drop=True)
+
+    if len(st.session_state.vendor_df) > 0:
+        if st.button("Submit All Remaining Items"):
+            worksheet_data = st.session_state.worksheet.get_all_values()
+            headers = worksheet_data[0]
+
+            for i, row in st.session_state.vendor_df.iterrows():
+                country = st.session_state.get(f"country_{i}", "Select...")
+                hts = st.session_state.get(f"hts_{i}", "")
+
+                if country == "Select..." or not hts.isdigit() or len(hts) != 10:
+                    continue
+
+                try:
+                    row_index = i + 2
+                    country_col = headers.index("CountryofOrigin") + 1
+                    hts_col = headers.index("HTSCode") + 1
+                    st.session_state.worksheet.update_cell(row_index, country_col, country)
+                    st.session_state.worksheet.update_cell(row_index, hts_col, hts)
+                except Exception as e:
+                    st.error(f"Error saving SKU {row['SKUID']}: {e}")
+
+            st.success("✅ All remaining items submitted successfully.")
+            st.session_state.vendor_df = None
+            st.rerun()
 
 # Login
 def login_page():
@@ -216,7 +243,6 @@ def login_page():
         else:
             st.error("Please enter a Vendor ID")
 
-# Main app
 def main():
     if not st.session_state.logged_in:
         login_page()
