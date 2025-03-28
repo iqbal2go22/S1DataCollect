@@ -93,15 +93,6 @@ def get_google_sheets_connection():
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
     
-    # Hard reset if needed
-    if 'reset_all' in st.session_state and st.session_state.reset_all:
-        for key in list(st.session_state.keys()):
-            if key not in ['logged_in', 'current_vendor']:
-                if key in st.session_state:
-                    del st.session_state[key]
-        st.session_state.session_id = str(uuid.uuid4())
-        st.session_state.submitted_skus = set()
-    
     # Load data if not already loaded
     if "vendor_df" not in st.session_state or st.session_state.vendor_df is None:
         client = get_google_sheets_connection()
@@ -340,11 +331,6 @@ def vendor_dashboard(vendor_id):
                 st.rerun()
             else:
                 st.warning("No items were submitted. Please fill in required fields.")
-
-    # Debug button (hidden in production)
-    if st.sidebar.button("Reset Session (Debug)"):
-        st.session_state.reset_all = True
-        st.rerun()
 
 # --- Login ---
 def login_page():
