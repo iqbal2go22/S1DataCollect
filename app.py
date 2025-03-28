@@ -181,8 +181,8 @@ iVBORw0KGgoAAAANSUhEUgAAAJYAAAA7CAYAAACnk+3eAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB7ElE
 
 # --- Function to create a gauge chart ---
 def create_gauge(percentage, remaining, total):
-    # Create a circular gauge using matplotlib
-    fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(polar=True))
+    # Create a circular gauge using matplotlib - smaller figure size
+    fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(polar=True))
     
     # Set the background color
     fig.patch.set_facecolor('none')
@@ -200,11 +200,11 @@ def create_gauge(percentage, remaining, total):
     ax.fill(theta_progress, np.ones_like(theta_progress), color=SITEONE_GREEN)
     
     # Add percentage text in the middle
-    ax.text(0, 0, f"{int(percentage)}%", fontsize=28, ha='center', va='center', 
+    ax.text(0, 0, f"{int(percentage)}%", fontsize=20, ha='center', va='center', 
             color=SITEONE_DARK_GREEN, fontweight='bold')
     
     # Add item count below percentage
-    ax.text(0, -0.4, f"{remaining} of {total} items", fontsize=12, ha='center', va='center', 
+    ax.text(0, -0.4, f"{remaining} of {total} items", fontsize=10, ha='center', va='center', 
            color=SITEONE_DARK_GRAY)
     
     # Remove spines and ticks
