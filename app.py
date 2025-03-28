@@ -16,22 +16,14 @@ st.markdown("""
         .block-container {
             padding-top: 2rem;
         }
-        div[data-testid="column"] {
-            padding-top: 0.5rem !important;
-        }
         div[data-testid="column"] > div {
             align-items: flex-start !important;
         }
         .stTextInput input {
             text-align: center;
         }
-        .dropdown-align .stSelectbox {
+        .stSelectbox > div {
             margin-top: 0 !important;
-        }
-        .hts-inline {
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -87,15 +79,21 @@ def vendor_dashboard(vendor_id):
 
         df = pd.DataFrame(data)
         df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
-        vendor_df = df[df["PrimaryVendorNumber"] == vendor_id].copy()
+
+        # Filter by vendor and exclude already completed rows
+        vendor_df = df[
+            (df["PrimaryVendorNumber"] == vendor_id) &
+            ((df["CountryofOrigin"].isna()) | (df["CountryofOrigin"] == "") |
+             (df["HTSCode"].isna()) | (df["HTSCode"] == ""))
+        ].copy()
 
         if vendor_df.empty:
-            st.warning(f"No products found for Vendor ID '{vendor_id}'")
+            st.success("✅ All items for this vendor have already been submitted.")
             return
 
         vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
 
-        # Show progress bar
+        # Progress bar
         with st.container():
             msg_container = st.empty()
             progress_bar = st.progress(0, text="Loading items...")
@@ -124,7 +122,7 @@ def vendor_dashboard(vendor_id):
     all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
     dropdown_options = ["Select..."] + all_countries
 
-    # --- Table Headers ---
+    # --- Table Header ---
     cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
     with cols[0]: st.markdown("**Image**")
     with cols[1]: st.markdown("**Taxonomy**")
@@ -161,15 +159,12 @@ def vendor_dashboard(vendor_id):
         with cols[4]: st.markdown(str(row.get("ProductName", "")))
 
         with cols[5]:
-            with st.container():
-                st.markdown('<div class="dropdown-align">', unsafe_allow_html=True)
-                country = st.selectbox(
-                    label="",
-                    options=dropdown_options,
-                    index=0,
-                    key=f"country_{i}"
-                )
-                st.markdown('</div>', unsafe_allow_html=True)
+            country = st.selectbox(
+                label="",
+                options=dropdown_options,
+                index=0,
+                key=f"country_{i}"
+            )
 
         with cols[6]:
             c1, c2 = st.columns([2.2, 1])
@@ -189,7 +184,7 @@ def vendor_dashboard(vendor_id):
                 continue
 
             try:
-                row_index = i + 2
+                row_index = i + 2  # 1-based + header
                 country_col = st.session_state.headers.index("CountryofOrigin") + 1
                 hts_col = st.session_state.headers.index("HTSCode") + 1
                 st.session_state.worksheet.update_cell(row_index, country_col, country)
@@ -198,9 +193,11 @@ def vendor_dashboard(vendor_id):
             except Exception as e:
                 st.error(f"Error saving SKU {row['SKUID']}: {e}")
                 rows_to_keep.append(row)
+
         else:
             rows_to_keep.append(row)
 
+    # Rebuild remaining view
     st.session_state.vendor_df = pd.DataFrame(rows_to_keep).reset_index(drop=True)
 
     if len(st.session_state.vendor_df) > 0:
@@ -222,7 +219,7 @@ def vendor_dashboard(vendor_id):
             st.session_state.vendor_df = None
             st.rerun()
 
-# --- Login Page ---
+# --- Login ---
 def login_page():
     st.title("🌍 Product Origin Data Collection")
     params = st.query_params
