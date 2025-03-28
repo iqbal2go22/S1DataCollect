@@ -766,10 +766,11 @@ def admin_dashboard():
             })
         
         # Sort by completion percentage (descending)
+        # Sort by completion percentage (descending)
         tax_path_stats = sorted(tax_path_stats, key=lambda x: x["completion_percentage"], reverse=True)
-        
+
         # Create a heatmap/treemap visualization
-                # Create new dataframe with custom label
+        # Create new dataframe with custom label
         tax_path_df = pd.DataFrame([{
                 "Owner": item["owner"],
                 "Items": item["total_items"],
@@ -797,6 +798,7 @@ def admin_dashboard():
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
         
         # Expandable sections for each Category Owner with their vendors
