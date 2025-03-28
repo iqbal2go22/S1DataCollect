@@ -240,14 +240,61 @@ def admin_dashboard():
 def vendor_dashboard(vendor_id):
     st.title(f"Welcome, Vendor #{vendor_id}")
     st.subheader("Product Country of Origin and HTS Code Data Collection")
-    
-    # Test spreadsheet access button
+
+    # Test Google Sheets Connection button
     if st.button("Test Google Sheets Connection", key="test_vendor"):
         success, message = test_spreadsheet_access()
         if success:
             st.success(message)
         else:
             st.error(message)
+            return
+
+    # Load product data from Google Sheets
+    try:
+        client = get_google_sheets_connection()
+        if not client:
+            st.error("Failed to connect to Google Sheets")
+            return
+
+        spreadsheet = client.open(st.secrets["spreadsheet_name"])
+        worksheet = spreadsheet.worksheet("Sheet1")
+        data = worksheet.get_all_records()
+        if not data:
+            st.warning("Sheet1 exists but contains no data.")
+            return
+
+        df = pd.DataFrame(data)
+
+        # Display raw sheet data (for debugging)
+        st.write("📋 Raw Sheet1 Data (first 5 rows):")
+        st.dataframe(df.head())
+
+        # Normalize the vendor ID
+        vendor_id = vendor_id.strip().upper()
+
+        # Normalize column values
+        if "PrimaryVendorNumber" not in df.columns:
+            st.error("Missing 'PrimaryVendorNumber' column in Sheet1.")
+            return
+
+        df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
+
+        # Filter rows for this vendor
+        vendor_df = df[df["PrimaryVendorNumber"] == vendor_id]
+
+        if vendor_df.empty:
+            st.warning(f"No products found for Vendor ID '{vendor_id}'. Please ensure it's listed in the spreadsheet.")
+            return
+
+        st.success(f"✅ Loaded {len(vendor_df)} product(s) for Vendor ID '{vendor_id}'")
+        st.dataframe(vendor_df)
+
+        # TODO: Add form fields for COO, HTS, etc.
+
+    except Exception as e:
+        st.error(f"Error loading data from sheet 'Sheet1': {e}")
+
     
     # Logout button
     if st.sidebar.button("Logout"):
