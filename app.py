@@ -315,26 +315,16 @@ def get_google_sheets_connection():
 
 # --- Enhanced SiteOne Header Component ---
 def render_header(vendor_name, vendor_id=None):
-    header_info = ""
-    if vendor_id:
-        header_info = f"""
-        <div class="header-vendor-info">
-            <p class="header-vendor-name">{vendor_name}</p>
-        </div>
-        """
-    else:
-        header_info = f"""
-        <div class="header-vendor-info">
-            <p class="header-vendor-name">Admin Dashboard</p>
-        </div>
-        """
+    title = "Admin Dashboard" if not vendor_id else vendor_name
     
     st.markdown(f"""
     <div class="siteone-header">
         <div class="header-logo">
             <img src="data:image/png;base64,{SITEONE_LOGO}" alt="SiteOne Logo" height="60">
         </div>
-        {header_info}
+        <div class="header-vendor-info">
+            <p class="header-vendor-name">{title}</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
