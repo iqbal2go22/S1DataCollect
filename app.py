@@ -17,13 +17,29 @@ st.markdown("""
             padding-top: 2rem;
         }
         div[data-testid="column"] > div {
-            align-items: flex-start !important;
+            align-items: center !important;  /* Fixed alignment issue */
         }
         .stTextInput input {
             text-align: center;
         }
         .stSelectbox > div {
             margin-top: 0 !important;
+        }
+        /* Progress counter styling */
+        .progress-counter {
+            font-size: 24px;
+            text-align: center;
+            background-color: #f0f2f6;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        .progress-counter-large {
+            font-size: 42px;
+            color: #0068c9;
+            margin: 0;
+            padding: 0;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -45,6 +61,8 @@ if "vendor_df" not in st.session_state:
     st.session_state.vendor_df = None
 if "vendor_name" not in st.session_state:
     st.session_state.vendor_name = ""
+if "total_remaining" not in st.session_state:
+    st.session_state.total_remaining = 0
 
 # --- Connect to Google Sheets ---
 def get_google_sheets_connection():
@@ -65,6 +83,7 @@ def get_google_sheets_connection():
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
 
+    # Load data if not already loaded
     if st.session_state.vendor_df is None:
         client = get_google_sheets_connection()
         if not client:
@@ -92,6 +111,10 @@ def vendor_dashboard(vendor_id):
             return
 
         vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
+        
+        # Store total count for progress tracking
+        st.session_state.total_items = len(vendor_df)
+        st.session_state.total_remaining = len(vendor_df)
 
         # Progress bar
         with st.container():
@@ -110,12 +133,21 @@ def vendor_dashboard(vendor_id):
         st.session_state.vendor_name = vendor_df.iloc[0].get("PrimaryVendorName", f"Vendor {vendor_id}")
 
     st.title(f"{st.session_state.vendor_name} ({vendor_id})")
+    
+    # Big progress counter at the top
+    st.markdown(f"""
+    <div class="progress-counter">
+        <p>Items Remaining</p>
+        <p class="progress-counter-large">{st.session_state.total_remaining} / {st.session_state.total_items}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("""
     **Instructions:**
     - Select a **Country of Origin** using the dropdown.
     - Enter the **HTS Code** as a 10-digit number (no periods).
     - If you only have 6 or 8 digits, add trailing 0s (e.g. `0601101500`).
+    - Each row will disappear after successful submission.
     """)
     st.markdown("---")
 
@@ -163,7 +195,8 @@ def vendor_dashboard(vendor_id):
                 label="",
                 options=dropdown_options,
                 index=0,
-                key=f"country_{i}"
+                key=f"country_{i}",
+                label_visibility="collapsed"  # Improve alignment
             )
 
         with cols[6]:
@@ -184,38 +217,59 @@ def vendor_dashboard(vendor_id):
                 continue
 
             try:
-                row_index = i + 2  # 1-based + header
+                # Find the actual row in the spreadsheet
+                all_skus = st.session_state.worksheet.col_values(st.session_state.headers.index("SKUID") + 1)
+                row_index = all_skus.index(str(row['SKUID'])) + 1
+                
                 country_col = st.session_state.headers.index("CountryofOrigin") + 1
                 hts_col = st.session_state.headers.index("HTSCode") + 1
+                
                 st.session_state.worksheet.update_cell(row_index, country_col, country)
                 st.session_state.worksheet.update_cell(row_index, hts_col, hts_code)
                 st.success(f"✅ Submitted SKU {row['SKUID']}")
+                
+                # Update counter
+                st.session_state.total_remaining -= 1
+                
+                # Don't add this row to rows_to_keep (it will be removed)
             except Exception as e:
                 st.error(f"Error saving SKU {row['SKUID']}: {e}")
                 rows_to_keep.append(row)
-
         else:
             rows_to_keep.append(row)
 
     # Rebuild remaining view
     st.session_state.vendor_df = pd.DataFrame(rows_to_keep).reset_index(drop=True)
 
-    if len(st.session_state.vendor_df) > 0:
+    # Check if we're done
+    if st.session_state.total_remaining == 0:
+        st.balloons()
+        st.success("🎉 All items have been successfully completed! Thank you!")
+        st.session_state.vendor_df = None
+    elif len(st.session_state.vendor_df) > 0:
         if st.button("Submit All Remaining Items"):
+            items_processed = 0
             for i, row in st.session_state.vendor_df.iterrows():
                 country = st.session_state.get(f"country_{i}", "Select...")
                 hts = st.session_state.get(f"hts_{i}", "")
                 if country == "Select..." or not hts.isdigit() or len(hts) != 10:
                     continue
+                
                 try:
-                    row_index = i + 2
+                    # Find the actual row in the spreadsheet
+                    all_skus = st.session_state.worksheet.col_values(st.session_state.headers.index("SKUID") + 1)
+                    row_index = all_skus.index(str(row['SKUID'])) + 1
+                    
                     country_col = st.session_state.headers.index("CountryofOrigin") + 1
                     hts_col = st.session_state.headers.index("HTSCode") + 1
+                    
                     st.session_state.worksheet.update_cell(row_index, country_col, country)
                     st.session_state.worksheet.update_cell(row_index, hts_col, hts)
+                    items_processed += 1
                 except Exception as e:
                     st.error(f"Error saving SKU {row['SKUID']}: {e}")
-            st.success("✅ All remaining items submitted successfully.")
+            
+            st.success(f"✅ {items_processed} items submitted successfully.")
             st.session_state.vendor_df = None
             st.rerun()
 
