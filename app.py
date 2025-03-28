@@ -769,33 +769,35 @@ def admin_dashboard():
         tax_path_stats = sorted(tax_path_stats, key=lambda x: x["completion_percentage"], reverse=True)
         
         # Create a heatmap/treemap visualization
-        tax_path_df = pd.DataFrame([{
-            "Category Owner": item["owner"],
-            "Items": item["total_items"],
-            "Completion": item["completion_percentage"]
-        } for item in tax_path_stats])
-        
-        if not tax_path_df.empty:
-            fig = px.treemap(
-                tax_path_df,
-                path=["Category Owner"],
-                values="Items",
-                color="Completion",
-                color_continuous_scale=[[0, "#f2f2f2"], [1, SITEONE_GREEN]],
-                hover_data=["Items", "Completion"],
-            )
-            
-            fig.update_traces(
-                textinfo="label+value+percent entry",
-                hovertemplate="<b>%{label}</b><br>Items: %{value}<br>Completion: %{color:.1f}%"
-            )
-            
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=30, b=0),
-                height=500,
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
+# Create new dataframe with custom label
+tax_path_df = pd.DataFrame([{
+    "Owner": item["owner"],
+    "Items": item["total_items"],
+    "Completion": item["completion_percentage"],
+    "Label": f"{item['owner']}<br>{item['total_items']} items ({item['total_items'] / total_items:.0%})<br>{item['completion_percentage']:.0f}% complete"
+} for item in tax_path_stats])
+
+fig = px.treemap(
+    tax_path_df,
+    path=["Label"],
+    values="Items",
+    color="Completion",
+    color_continuous_scale=[[0, "#f2f2f2"], [1, SITEONE_GREEN]],
+    hover_data={"Owner": True, "Items": True, "Completion": True},
+)
+
+fig.update_traces(
+    textinfo="label",
+    hovertemplate="<b>%{label}</b><br>Items: %{value}<br>Completion: %{color:.1f}%"
+)
+
+fig.update_layout(
+    margin=dict(l=0, r=0, t=30, b=0),
+    height=500,
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
         
         # Expandable sections for each Category Owner with their vendors
         for owner_data in tax_path_stats:
