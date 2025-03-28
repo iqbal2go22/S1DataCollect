@@ -43,11 +43,13 @@ if "headers" not in st.session_state:
 if "vendor_name" not in st.session_state:
     st.session_state.vendor_name = ""
 
+
 def get_google_sheets_connection():
     credentials = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"], scopes=SCOPES
     )
     return gspread.authorize(credentials)
+
 
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
@@ -60,20 +62,26 @@ def vendor_dashboard(vendor_id):
         df = pd.DataFrame(data)
         df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
 
-        df = df[(df["PrimaryVendorNumber"] == vendor_id) & (
-            (df["CountryofOrigin"].isna()) | (df["CountryofOrigin"] == '') |
-            (df["HTSCode"].isna()) | (df["HTSCode"] == '')
-        )].copy()
+        df = df[(df["PrimaryVendorNumber"] == vendor_id)].copy()
 
         if df.empty:
             st.success("✅ All items for this vendor have already been submitted.")
             return
 
         df = df.sort_values("Taxonomy").reset_index(drop=True)
+
         st.session_state.vendor_df = df
         st.session_state.worksheet = worksheet
         st.session_state.headers = worksheet.row_values(1)
         st.session_state.vendor_name = df.iloc[0].get("PrimaryVendorName", f"Vendor {vendor_id}")
+
+    # Filter visible items each render
+    filtered_df = st.session_state.vendor_df[
+        (st.session_state.vendor_df["CountryofOrigin"].isna()) |
+        (st.session_state.vendor_df["CountryofOrigin"] == '') |
+        (st.session_state.vendor_df["HTSCode"].isna()) |
+        (st.session_state.vendor_df["HTSCode"] == '')
+    ].copy().reset_index(drop=True)
 
     st.title(f"{st.session_state.vendor_name} ({vendor_id})")
 
@@ -88,15 +96,12 @@ def vendor_dashboard(vendor_id):
     all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
     dropdown_options = ["Select..."] + all_countries
 
-    # Table header
     cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
     for i, label in enumerate(["Image", "Taxonomy", "SKU", "Item #", "Product Name", "Country of Origin", "HTS Code + Submit"]):
         with cols[i]:
             st.markdown(f"**{label}**")
 
-    updated_df = st.session_state.vendor_df.copy()
-
-    for i, row in updated_df.iterrows():
+    for i, row in filtered_df.iterrows():
         cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
 
         with cols[0]:
@@ -117,14 +122,16 @@ def vendor_dashboard(vendor_id):
         with cols[4]: st.markdown(str(row.get("ProductName", "")))
 
         with cols[5]:
-            country = st.selectbox("", options=dropdown_options, index=0, key=f"country_{i}")
+            cc1, _ = st.columns([1, 1])
+            with cc1:
+                country = st.selectbox("", options=dropdown_options, index=0, key=f"country_{row['SKUID']}")
 
         with cols[6]:
             c1, c2 = st.columns([2.2, 1])
             with c1:
-                hts_code = st.text_input("", value="", key=f"hts_{i}", max_chars=10, label_visibility="collapsed")
+                hts_code = st.text_input("", value="", key=f"hts_{row['SKUID']}", max_chars=10, label_visibility="collapsed")
             with c2:
-                submitted = st.button("Submit", key=f"submit_{i}")
+                submitted = st.button("Submit", key=f"submit_{row['SKUID']}")
 
         if submitted:
             if country == "Select..." or not hts_code.isdigit() or len(hts_code) != 10:
@@ -132,27 +139,27 @@ def vendor_dashboard(vendor_id):
                 st.stop()
 
             try:
-                row_index = i + 2
+                match = st.session_state.vendor_df["SKUID"] == row["SKUID"]
+                row_index = st.session_state.vendor_df[match].index[0] + 2
                 country_col = st.session_state.headers.index("CountryofOrigin") + 1
                 hts_col = st.session_state.headers.index("HTSCode") + 1
                 st.session_state.worksheet.update_cell(row_index, country_col, country)
                 st.session_state.worksheet.update_cell(row_index, hts_col, hts_code)
                 st.success(f"✅ Submitted SKU {row['SKUID']}")
-                st.session_state.vendor_df.drop(i, inplace=True)
-                st.session_state.vendor_df.reset_index(drop=True, inplace=True)
                 st.rerun()
             except Exception as e:
                 st.error(f"Error updating Google Sheet: {e}")
 
-    if len(st.session_state.vendor_df) > 0:
+    if len(filtered_df) > 0:
         if st.button("Submit All Remaining Items"):
-            for i, row in st.session_state.vendor_df.iterrows():
-                country = st.session_state.get(f"country_{i}", "Select...")
-                hts = st.session_state.get(f"hts_{i}", "")
+            for i, row in filtered_df.iterrows():
+                country = st.session_state.get(f"country_{row['SKUID']}", "Select...")
+                hts = st.session_state.get(f"hts_{row['SKUID']}", "")
                 if country == "Select..." or not hts.isdigit() or len(hts) != 10:
                     continue
                 try:
-                    row_index = i + 2
+                    match = st.session_state.vendor_df["SKUID"] == row["SKUID"]
+                    row_index = st.session_state.vendor_df[match].index[0] + 2
                     country_col = st.session_state.headers.index("CountryofOrigin") + 1
                     hts_col = st.session_state.headers.index("HTSCode") + 1
                     st.session_state.worksheet.update_cell(row_index, country_col, country)
@@ -162,6 +169,7 @@ def vendor_dashboard(vendor_id):
             st.success("✅ All remaining items submitted successfully.")
             st.session_state.vendor_df = None
             st.rerun()
+
 
 def login_page():
     st.title("🌍 Product Origin Data Collection")
@@ -179,11 +187,13 @@ def login_page():
         else:
             st.error("Please enter a Vendor ID")
 
+
 def main():
     if not st.session_state.logged_in:
         login_page()
     else:
         vendor_dashboard(st.session_state.current_vendor)
+
 
 if __name__ == "__main__":
     main()
