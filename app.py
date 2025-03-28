@@ -457,6 +457,7 @@ def vendor_dashboard(vendor_id):
             <li>Select a <strong>Country of Origin</strong> using the dropdown.</li>
             <li>Enter the <strong>HTS Code</strong> as a 10-digit number (no periods).</li>
             <li>If you only have 6 or 8 digits, add trailing 0s (e.g. <code>0601101500</code>).</li>
+            <li>SKU Column below is for SiteOne reference only.</li>
             <li>You can click <strong>Submit</strong> after completing each item. OR you can <strong>Submit</strong> all at once using the button at the bottom.</li>
         </ul>
     </div>
