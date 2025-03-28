@@ -387,7 +387,7 @@ def vendor_dashboard(vendor_id):
             <li>Select a <strong>Country of Origin</strong> using the dropdown.</li>
             <li>Enter the <strong>HTS Code</strong> as a 10-digit number (no periods).</li>
             <li>If you only have 6 or 8 digits, add trailing 0s (e.g. <code>0601101500</code>).</li>
-            <li>Click <strong>Submit</strong> after completing each item.</li>
+            <li>You can click <strong>Submit</strong> after completing each item. Or <strong>Submit</strong> all at once using the button at the bottom.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
