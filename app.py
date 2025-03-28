@@ -16,32 +16,33 @@ st.markdown("""
         .block-container {
             padding-top: 2rem;
         }
+        div[data-testid="column"] {
+            padding-top: 0.5rem !important;
+        }
         div[data-testid="column"] > div {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-start !important;
         }
         .stTextInput input {
             text-align: center;
+        }
+        .dropdown-align .stSelectbox {
+            margin-top: 0 !important;
         }
         .hts-inline {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .progress-container {
-            margin-top: -40px;
-            margin-bottom: 10px;
-        }
     </style>
 """, unsafe_allow_html=True)
 
+# --- Google API Scopes ---
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
 ]
 
-# Session state
+# --- Session State ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "current_vendor" not in st.session_state:
@@ -53,7 +54,7 @@ if "vendor_df" not in st.session_state:
 if "vendor_name" not in st.session_state:
     st.session_state.vendor_name = ""
 
-# Google Sheets
+# --- Connect to Google Sheets ---
 def get_google_sheets_connection():
     try:
         credentials = Credentials.from_service_account_info(
@@ -68,7 +69,7 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
-# Vendor Form
+# --- Vendor Form ---
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
 
@@ -94,6 +95,7 @@ def vendor_dashboard(vendor_id):
 
         vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
 
+        # Show progress bar
         with st.container():
             msg_container = st.empty()
             progress_bar = st.progress(0, text="Loading items...")
@@ -122,7 +124,7 @@ def vendor_dashboard(vendor_id):
     all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
     dropdown_options = ["Select..."] + all_countries
 
-    # Header
+    # --- Table Headers ---
     cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
     with cols[0]: st.markdown("**Image**")
     with cols[1]: st.markdown("**Taxonomy**")
@@ -159,18 +161,21 @@ def vendor_dashboard(vendor_id):
         with cols[4]: st.markdown(str(row.get("ProductName", "")))
 
         with cols[5]:
-            country = st.selectbox(
-                label="",
-                options=dropdown_options,
-                index=0,
-                key=f"country_{i}"
-            )
+            with st.container():
+                st.markdown('<div class="dropdown-align">', unsafe_allow_html=True)
+                country = st.selectbox(
+                    label="",
+                    options=dropdown_options,
+                    index=0,
+                    key=f"country_{i}"
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
 
         with cols[6]:
-            col1, col2 = st.columns([2, 1])
-            with col1:
+            c1, c2 = st.columns([2.2, 1])
+            with c1:
                 hts_code = st.text_input("", value="", key=f"hts_{i}", max_chars=10, label_visibility="collapsed")
-            with col2:
+            with c2:
                 submitted = st.button("Submit", key=f"submit_{i}")
 
         if submitted:
@@ -217,7 +222,7 @@ def vendor_dashboard(vendor_id):
             st.session_state.vendor_df = None
             st.rerun()
 
-# Login
+# --- Login Page ---
 def login_page():
     st.title("🌍 Product Origin Data Collection")
     params = st.query_params
@@ -235,7 +240,7 @@ def login_page():
         else:
             st.error("Please enter a Vendor ID")
 
-# Main
+# --- Main ---
 def main():
     if not st.session_state.logged_in:
         login_page()
