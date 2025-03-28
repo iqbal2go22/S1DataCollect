@@ -450,7 +450,7 @@ def vendor_dashboard(vendor_id):
         with cols[2]: st.markdown(str(row.get("SKUID", "")))
         with cols[3]: st.markdown(str(row.get("SiteOneItemNumber", "")))
         with cols[4]: st.markdown(str(row.get("ProductName", "")))
-with cols[5]:
+        with cols[5]:
             country = st.selectbox(
                 label="",
                 options=dropdown_options,
