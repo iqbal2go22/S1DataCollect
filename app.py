@@ -41,21 +41,6 @@ st.markdown(f"""
         div.stDeployButton {{display: none;}}
         section[data-testid="stSidebar"] {{display: none;}}
         .stAlert {{display: none;}}
-        div[data-testid="stDecoration"] {{display: none;}}
-        div[data-testid="collapsedControl"] {{display: none;}}
-        
-        /* Remove the gray bar container */
-        div.css-1r6slb0 {{display: none !important;}}
-        div.st-emotion-cache-1r6slb0 {{display: none !important;}}
-        div.st-emotion-cache-1kyxreq {{display: none !important;}}
-        div.css-1kyxreq {{display: none !important;}}
-        
-        /* Hide ALL whitespace dividers */
-        hr {{display: none !important;}}
-        .stHorizontalBlock {{display: none !important;}}
-        
-        /* Force all elements to the top */
-        body > div {{padding-top: 0 !important; margin-top: 0 !important;}}
         
         /* Main theme colors */
         :root {{
@@ -248,20 +233,6 @@ st.markdown(f"""
         div:has(> .stApp) {{
             padding-top: 0 !important;
         }}
-        
-        /* Remove space between title and gauge */
-        .gauge-title-container {{
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-        }}
-        
-        /* Customize any divider or spacer */
-        div[data-testid="stVerticalBlock"] > div:empty {{
-            display: none !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -401,11 +372,8 @@ def vendor_dashboard(vendor_id):
     completed_items = total_items - remaining_items
     completion_percentage = (completed_items / total_items * 100) if total_items > 0 else 0
     
-    # Combine title and gauge to eliminate spacing
-    st.markdown('<div class="gauge-title-container">', unsafe_allow_html=True)
+    # Progress gauge with larger title
     st.markdown('<h1 class="gauge-title">Items Remaining</h1>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
     st.markdown('<div class="gauge-container">', unsafe_allow_html=True)
     gauge_html = create_gauge_html(completion_percentage, remaining_items, total_items)
     st.markdown(gauge_html, unsafe_allow_html=True)
@@ -534,7 +502,7 @@ def vendor_dashboard(vendor_id):
                 country_col = st.session_state.headers.index("CountryofOrigin") + 1
                 hts_col = st.session_state.headers.index("HTSCode") + 1
                 
-                # Store HTS code as string wrapped in single quotes to preserve leading zeros
+                # Add prefix to HTS code to preserve leading zeros
                 st.session_state.worksheet.update_cell(row_index, country_col, country)
                 st.session_state.worksheet.update_cell(row_index, hts_col, f"'{hts_code}")
                 
@@ -577,7 +545,7 @@ def vendor_dashboard(vendor_id):
                     country_col = st.session_state.headers.index("CountryofOrigin") + 1
                     hts_col = st.session_state.headers.index("HTSCode") + 1
                     
-                    # Store HTS code as string wrapped in single quotes to preserve leading zeros
+                    # Add prefix to HTS code to preserve leading zeros
                     st.session_state.worksheet.update_cell(row_index, country_col, country)
                     st.session_state.worksheet.update_cell(row_index, hts_col, f"'{hts}")
                     
