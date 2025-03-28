@@ -9,8 +9,6 @@ from io import BytesIO
 import time
 import uuid
 import base64
-import matplotlib.pyplot as plt
-import numpy as np
 
 # SiteOne brand colors
 SITEONE_GREEN = "#5a8f30"
@@ -103,6 +101,67 @@ st.markdown(f"""
             margin-bottom: 0.5rem;
         }}
         
+        /* CSS-based gauge */
+        .progress-gauge {{
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            position: relative;
+            margin: 0 auto;
+            overflow: hidden;
+        }}
+        
+        .progress-gauge:before {{
+            content: "";
+            display: block;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: #fff;
+            z-index: 1;
+        }}
+        
+        .progress-value {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--siteone-dark-green);
+            z-index: 2;
+        }}
+        
+        .progress-count {{
+            position: absolute;
+            top: 68%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            color: var(--siteone-dark-gray);
+            z-index: 2;
+        }}
+        
+        .progress-fill {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 150px;
+            height: 150px;
+            clip-path: polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 0);
+            background: var(--siteone-green);
+            transform-origin: center;
+        }}
+        
         /* Success message styling */
         .submitted-row {{
             background-color: #d4edda;
@@ -179,43 +238,20 @@ SITEONE_LOGO = """
 iVBORw0KGgoAAAANSUhEUgAAAJYAAAA7CAYAAACnk+3eAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB7ElEQVR4nO3aP2sUURTG4XdDNKJExa1EUwQLwS+ghYWNH0CwFksLC8HGKiD4FRT8AhYWglZiY6Fgo42FkGJBMEYI0UTQ9VrMBBYxzibZPXdm9vlV58Jy4XDu3D0DkiRJkiQpE+dTB6hRO4EHwJ7UQWpyA1gGvqYOUouPA/P/p75xC3idOkQtngJ7UdUOA4upQ9TiObADVe0E8DB1iFrcB3ajqp0GnqQOUYsZYA+q2iXgceoQtbgL7EJVO49XrFbMALtR1a4A91KHqMVtYCeq2g3geeoQtbgF7EBVO4zX2lZMA9tR1a4Cz1KHqMU1YBuq2k1gLnWIWkwB21DVngLvU4eoxSiwBVXtLvApdYhaXAU2o6o9BxZTh6jFFLARVe0F8DF1iFqMA+tR1eaBr6lD1GIMWIuqdgl4lzpELSaAtahqH4AvqUPUYhJYjaq2AHxPHaIW08AKVLVF4FfqELWYAX6gqn0HfqcOUYsXqFmOWI1yxGqUI1ajHLEa5YjVKEesRjliNcoRq1GOWI1yxGqUI1ajHLEa5YjVKEesRjliNepfjpjvY/WpzYmcX4FOeQTqiA8rk3HEisQRKxJHrEgcsSJxxIrEESsSR6xIHLEiccSKxBErEkesSDrAVOoQkiRJkiQpvT9FD7RxdMqW+QAAAABJRU5ErkJggg==
 """
 
-# --- Function to create a gauge chart ---
-def create_gauge(percentage, remaining, total):
-    # Create a circular gauge using matplotlib - smaller figure size
-    fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(polar=True))
+# --- HTML/CSS-based gauge function ---
+def create_gauge_html(percentage, remaining, total):
+    # Calculate rotation angle based on percentage (0-360 degrees)
+    rotation = min(360, max(0, percentage * 3.6))  # 3.6 = 360/100
     
-    # Set the background color
-    fig.patch.set_facecolor('none')
+    gauge_html = f"""
+    <div class="progress-gauge">
+        <div class="progress-fill" style="transform: rotate({rotation}deg);"></div>
+        <div class="progress-value">{int(percentage)}%</div>
+        <div class="progress-count">{remaining} of {total} items</div>
+    </div>
+    """
     
-    # Calculate angles for the gauge
-    theta = np.linspace(0, 2*np.pi, 100)
-    radii = np.ones_like(theta)
-    
-    # Plot background circle
-    ax.fill(theta, radii, color='#e0e0e0', alpha=0.5)
-    
-    # Plot the progress arc
-    end_angle = 2*np.pi * percentage/100
-    theta_progress = np.linspace(0, end_angle, 100)
-    ax.fill(theta_progress, np.ones_like(theta_progress), color=SITEONE_GREEN)
-    
-    # Add percentage text in the middle
-    ax.text(0, 0, f"{int(percentage)}%", fontsize=20, ha='center', va='center', 
-            color=SITEONE_DARK_GREEN, fontweight='bold')
-    
-    # Add item count below percentage
-    ax.text(0, -0.4, f"{remaining} of {total} items", fontsize=10, ha='center', va='center', 
-           color=SITEONE_DARK_GRAY)
-    
-    # Remove spines and ticks
-    ax.spines['polar'].set_visible(False)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    
-    # Remove outer white space
-    plt.tight_layout()
-    
-    return fig
+    return gauge_html
 
 # --- Connect to Google Sheets ---
 def get_google_sheets_connection():
@@ -317,8 +353,8 @@ def vendor_dashboard(vendor_id):
     # Progress gauge
     st.markdown('<div class="gauge-container">', unsafe_allow_html=True)
     st.markdown('<p class="gauge-title">Items Remaining</p>', unsafe_allow_html=True)
-    gauge_chart = create_gauge(completion_percentage, remaining_items, total_items)
-    st.pyplot(gauge_chart)
+    gauge_html = create_gauge_html(completion_percentage, remaining_items, total_items)
+    st.markdown(gauge_html, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     # Instructions
