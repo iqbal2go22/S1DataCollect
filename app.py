@@ -180,22 +180,23 @@ def login_page():
             else:
                 st.error("Vendor ID not found")
     
-    with col2:
-        st.subheader("Admin Login")
-        st.info("For admin access to manage products and vendors.")
+    # In the login_page() function, with col2 section
+with col2:
+    st.subheader("Admin Login")
+    st.info("For admin access to manage products and vendors.")
+    
+    admin_password = st.text_input("Admin Password", type="password")
+    
+    if st.button("Login as Admin"):
+        # Get admin password from secrets
+        correct_password = st.secrets.get("admin_password", "admin123")
         
-        admin_password = st.text_input("Admin Password", type="password")
-        
-        if st.button("Login as Admin"):
-            # Get admin password from secrets
-            correct_password = st.secrets.get("admin_password", "admin123")
-            
-            if admin_password == correct_password:
-                st.session_state.logged_in = True
-                st.session_state.is_admin = True
-                st.rerun()
-            else:
-                st.error("Invalid admin password")
+        if admin_password == correct_password:
+            st.session_state.logged_in = True
+            st.session_state.is_admin = True
+            st.rerun()
+        else:
+            st.error("Invalid admin password")
 
 # Admin Dashboard
 def admin_dashboard():
