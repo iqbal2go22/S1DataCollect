@@ -4,3 +4,7 @@ gspread>=5.7.2
 google-auth>=2.15.0
 gspread-dataframe>=3.3.0
 pycountry>=22.3.5
+matplotlib>=3.5.0
+numpy>=1.20.0
+Pillow>=9.0.0
+requests>=2.25.0
