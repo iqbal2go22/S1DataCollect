@@ -10,7 +10,7 @@ import time
 
 st.set_page_config(page_title="Product Origin Data Collection", page_icon="🌍", layout="wide")
 
-# --- Custom CSS for layout tweaks ---
+# --- Custom CSS ---
 st.markdown("""
     <style>
         .block-container {
@@ -24,10 +24,10 @@ st.markdown("""
         .stTextInput input {
             text-align: center;
         }
-        .hts-row {
+        .hts-inline {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .progress-container {
             margin-top: -40px;
@@ -36,13 +36,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Google API ---
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
 ]
 
-# --- Session State Setup ---
+# Session state
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "current_vendor" not in st.session_state:
@@ -54,7 +53,7 @@ if "vendor_df" not in st.session_state:
 if "vendor_name" not in st.session_state:
     st.session_state.vendor_name = ""
 
-# --- Connect to Google Sheets ---
+# Google Sheets
 def get_google_sheets_connection():
     try:
         credentials = Credentials.from_service_account_info(
@@ -69,7 +68,7 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
-# --- Vendor Dashboard ---
+# Vendor Form
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
 
@@ -95,16 +94,13 @@ def vendor_dashboard(vendor_id):
 
         vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
 
-        # Show progress bar
         with st.container():
             msg_container = st.empty()
             progress_bar = st.progress(0, text="Loading items...")
-
             for i in range(len(vendor_df)):
                 time.sleep(0.01)
                 progress_bar.progress((i + 1) / len(vendor_df), text="Loading items...")
-
-            time.sleep(0.3)
+            time.sleep(0.2)
             progress_bar.empty()
             msg_container.success(f"✅ Loaded {len(vendor_df)} items successfully!")
 
@@ -126,8 +122,8 @@ def vendor_dashboard(vendor_id):
     all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
     dropdown_options = ["Select..."] + all_countries
 
-    # --- Table Headers ---
-    cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 2.5])
+    # Header
+    cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
     with cols[0]: st.markdown("**Image**")
     with cols[1]: st.markdown("**Taxonomy**")
     with cols[2]: st.markdown("**SKU**")
@@ -140,7 +136,7 @@ def vendor_dashboard(vendor_id):
     rows_to_keep = []
 
     for i, row in updated_df.iterrows():
-        cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 2.5])
+        cols = st.columns([0.8, 1.8, 0.9, 1, 2.5, 2.5, 3])
 
         with cols[0]:
             img_url = row.get("ImageURL", "").strip()
@@ -171,11 +167,11 @@ def vendor_dashboard(vendor_id):
             )
 
         with cols[6]:
-            with st.container():
-                st.markdown('<div class="hts-row">', unsafe_allow_html=True)
+            col1, col2 = st.columns([2, 1])
+            with col1:
                 hts_code = st.text_input("", value="", key=f"hts_{i}", max_chars=10, label_visibility="collapsed")
+            with col2:
                 submitted = st.button("Submit", key=f"submit_{i}")
-                st.markdown("</div>", unsafe_allow_html=True)
 
         if submitted:
             if country == "Select...":
@@ -200,7 +196,6 @@ def vendor_dashboard(vendor_id):
         else:
             rows_to_keep.append(row)
 
-    # --- Save updates ---
     st.session_state.vendor_df = pd.DataFrame(rows_to_keep).reset_index(drop=True)
 
     if len(st.session_state.vendor_df) > 0:
@@ -222,7 +217,7 @@ def vendor_dashboard(vendor_id):
             st.session_state.vendor_df = None
             st.rerun()
 
-# --- Login Page ---
+# Login
 def login_page():
     st.title("🌍 Product Origin Data Collection")
     params = st.query_params
@@ -240,7 +235,7 @@ def login_page():
         else:
             st.error("Please enter a Vendor ID")
 
-# --- Main ---
+# Main
 def main():
     if not st.session_state.logged_in:
         login_page()
