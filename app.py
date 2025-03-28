@@ -714,28 +714,27 @@ def admin_dashboard():
     
     if not vendor_df.empty:
         fig = px.bar(
-                vendor_df, 
-                x="vendor_name", 
-                y="completion_percentage",
-                text=vendor_df["completion_percentage"].apply(lambda x: f"{int(x)}%"),
-                labels={"vendor_name": "Vendor", "completion_percentage": "Completion %"},
-                color="completion_percentage",
-                color_continuous_scale=[[0, "#f2f2f2"], [1, SITEONE_GREEN]],
-                height=1000,  # increase height for better spacing
+            vendor_df, 
+            x="vendor_name", 
+            y="completion_percentage",
+            text=vendor_df["completion_percentage"].apply(lambda x: f"{int(x)}%"),
+            labels={"vendor_name": "Vendor", "completion_percentage": "Completion %"},
+            color="completion_percentage",
+            color_continuous_scale=[[0, "#f2f2f2"], [1, SITEONE_GREEN]],
+            height=400
         )
-
+        
         fig.update_traces(textposition='outside')
-
         fig.update_layout(
-                xaxis_tickangle=45,
-                xaxis_tickfont=dict(size=12),
-                yaxis=dict(range=[0, 100]),
-                margin=dict(t=60, b=250),
-                plot_bgcolor="white"
+            uniformtext_minsize=10, 
+            uniformtext_mode='hide',
+            xaxis_title="Vendor",
+            yaxis_title="Completion Percentage (%)",
+            yaxis_range=[0, 100],
+            plot_bgcolor="white"
         )
-
+        
         st.plotly_chart(fig, use_container_width=True)
-
     
 
     
