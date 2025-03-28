@@ -418,7 +418,7 @@ def vendor_dashboard(vendor_id):
             st.success("✅ All items for this vendor have already been submitted.")
             return
 
-        vendor_df = vendor_df.sort_values("Taxonomy").reset_index(drop=True)
+        vendor_df = vendor_df.sort_values(by=["Taxonomy", "SiteOneItemNumber"]).reset_index(drop=True)
         
         # Store the data
         st.session_state.vendor_df = vendor_df
