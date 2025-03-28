@@ -6,10 +6,11 @@ import pycountry
 from PIL import Image
 import requests
 from io import BytesIO
+import time
 
 st.set_page_config(page_title="Product Origin Data Collection", page_icon="🌍", layout="wide")
 
-# --- Global Styling ---
+# Global styling
 st.markdown("""
     <style>
         div[data-testid="column"] > div {
@@ -31,18 +32,25 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Google API scopes
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
 ]
 
+# Session state
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "current_vendor" not in st.session_state:
     st.session_state.current_vendor = None
 if "google_connected" not in st.session_state:
     st.session_state.google_connected = False
+if "vendor_df" not in st.session_state:
+    st.session_state.vendor_df = None
+if "vendor_name" not in st.session_state:
+    st.session_state.vendor_name = ""
 
+# Google Sheets connection
 def get_google_sheets_connection():
     try:
         credentials = Credentials.from_service_account_info(
@@ -57,129 +65,139 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
+# Vendor dashboard
 def vendor_dashboard(vendor_id):
-    st.title(f"Mar-Co Clay Products, Inc. ({vendor_id})")
+    vendor_id = vendor_id.strip().upper()
+
+    # Only load data if it's not already loaded
+    if st.session_state.vendor_df is None:
+        with st.spinner("Loading products..."):
+            client = get_google_sheets_connection()
+            if not client:
+                return
+
+            spreadsheet = client.open(st.secrets["spreadsheet_name"])
+            worksheet = spreadsheet.worksheet("Sheet1")
+            data = worksheet.get_all_records()
+            if not data:
+                st.warning("Sheet1 is empty.")
+                return
+
+            df = pd.DataFrame(data)
+            df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
+            vendor_df = df[df["PrimaryVendorNumber"] == vendor_id].copy()
+
+            if vendor_df.empty:
+                st.warning(f"No products found for Vendor ID '{vendor_id}'")
+                return
+
+            st.session_state.vendor_df = vendor_df.reset_index(drop=True)
+            st.session_state.worksheet = worksheet
+            st.session_state.headers = worksheet.row_values(1)
+            st.session_state.vendor_name = vendor_df.iloc[0].get("PrimaryVendorName", f"Vendor {vendor_id}")
+            time.sleep(1)
+
+        st.success(f"✅ Loaded {len(st.session_state.vendor_df)} items successfully!")
+
+    st.title(f"{st.session_state.vendor_name} ({vendor_id})")
     st.markdown("Please complete the form and email the saved CSV file back to **tmunshi@siteone.com**.")
     st.markdown("---")
 
-    try:
-        client = get_google_sheets_connection()
-        if not client:
-            return
+    st.markdown("""
+    **Instructions:**
+    - Select a **Country of Origin** using the dropdown.
+    - Enter the **HTS Code** as a 10-digit number (no periods).
+    - If you only have 6 or 8 digits, add trailing 0s (e.g. `0601101500`).
+    """)
 
-        spreadsheet = client.open(st.secrets["spreadsheet_name"])
-        worksheet = spreadsheet.worksheet("Sheet1")
-        data = worksheet.get_all_records()
-        if not data:
-            st.warning("Sheet1 is empty.")
-            return
+    st.markdown("---")
 
-        df = pd.DataFrame(data)
+    all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
+    dropdown_options = ["Select..."] + all_countries
 
-        vendor_id = vendor_id.strip().upper()
-        df["PrimaryVendorNumber"] = df["PrimaryVendorNumber"].astype(str).str.strip().str.upper()
-        vendor_df = df[df["PrimaryVendorNumber"] == vendor_id].copy()
+    # Header
+    cols = st.columns([0.5, 1, 1, 2.5, 2.5, 2, 1])
+    with cols[0]: st.markdown("**✓**")
+    with cols[1]: st.markdown("**SKU**")
+    with cols[2]: st.markdown("**Item #**")
+    with cols[3]: st.markdown("**Product Name**")
+    with cols[4]: st.markdown("**Country of Origin**")
+    with cols[5]: st.markdown("**HTS Code**")
+    with cols[6]: st.markdown("**Image**")
 
-        if vendor_df.empty:
-            st.warning(f"No products found for Vendor ID '{vendor_id}'")
-            return
+    # Render items
+    updated_df = st.session_state.vendor_df.copy()
+    rows_to_keep = []
 
-        all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
-        dropdown_options = ["Select..."] + all_countries
+    for i, row in updated_df.iterrows():
+        cols = st.columns([0.5, 1, 1, 2.5, 2.5, 2, 1])
 
-        st.markdown("""
-        **Instructions:**
-        - Select a **Country of Origin** using the dropdown.
-        - Enter the **HTS Code** as a 10-digit number (no periods).
-        - If you only have 6 or 8 digits, add trailing 0s (e.g. `0601101500`).
-        """)
+        with cols[0]:
+            submit_box = st.checkbox("", key=f"submit_{i}")
 
-        st.markdown("---")
-        updated_rows = []
+        with cols[1]: st.markdown(str(row.get("SKUID", "")))
+        with cols[2]: st.markdown(str(row.get("SiteOneItemNumber", "")))
+        with cols[3]: st.markdown(str(row.get("ProductName", "")))
 
-        header_cols = st.columns([1.1, 1.1, 1.5, 3, 2.5, 2])
-        with header_cols[0]: st.markdown("**Image**")
-        with header_cols[1]: st.markdown("**SKU**")
-        with header_cols[2]: st.markdown("**Item #**")
-        with header_cols[3]: st.markdown("**Product Name**")
-        with header_cols[4]: st.markdown("**Country of Origin**")
-        with header_cols[5]: st.markdown("**HTS Code**")
+        with cols[4]:
+            country = st.selectbox(
+                label="",
+                options=dropdown_options,
+                index=0,
+                key=f"country_{i}"
+            )
 
-        for i, row in vendor_df.iterrows():
-            cols = st.columns([1.1, 1.1, 1.5, 3, 2.5, 2])
+        with cols[5]:
+            hts = st.text_input(
+                label="",
+                value="",
+                max_chars=10,
+                key=f"hts_{i}",
+                help="Enter 10-digit HTS Code"
+            )
 
-            with cols[0]:
-                image_url = row.get("ImageURL", "").strip()
-                if image_url:
-                    try:
-                        response = requests.get(image_url, timeout=3)
-                        if response.status_code == 200:
-                            img = Image.open(BytesIO(response.content))
-                            st.image(img, width=60)
-                        else:
-                            st.markdown("No Image")
-                    except:
-                        st.markdown("No Image")
-                else:
-                    st.markdown("No Image")
-
-            with cols[1]: st.markdown(str(row.get("SKUID", "")))
-            with cols[2]: st.markdown(str(row.get("SiteOneItemNumber", "")))
-            with cols[3]: st.markdown(str(row.get("ProductName", "")))
-
-            with cols[4]:
-                selected_country = st.selectbox(
-                    label="",
-                    options=dropdown_options,
-                    index=0,  # Always default to "Select..."
-                    key=f"country_{i}"
-                )
-
-            with cols[5]:
-                hts_code = st.text_input(
-                    label="",
-                    value="",
-                    key=f"hts_{i}",
-                    max_chars=10,
-                    help="Enter 10-digit HTS Code. Use trailing 0s if fewer digits."
-                )
-
-            updated_rows.append({
-                **row,
-                "CountryofOrigin": selected_country,
-                "HTSCode": hts_code,
-                "_row_index": i
-            })
-
-        if st.button("Submit"):
-            worksheet_data = worksheet.get_all_values()
-            headers = worksheet_data[0]
-
-            for updated in updated_rows:
-                row_index = updated["_row_index"] + 2
-                country = updated["CountryofOrigin"]
-                hts = updated["HTSCode"]
-
-                if country == "Select...":
-                    st.warning(f"⚠️ Country not selected for SKU {updated['SKUID']}")
-                    continue
-                if not hts.isdigit() or len(hts) != 10:
-                    st.warning(f"⚠️ Invalid HTS Code for SKU {updated['SKUID']}")
-                    continue
-
+        with cols[6]:
+            img_url = row.get("ImageURL", "").strip()
+            if img_url:
                 try:
-                    country_col = headers.index("CountryofOrigin") + 1
-                    hts_col = headers.index("HTSCode") + 1
-                    worksheet.update_cell(row_index, country_col, country)
-                    worksheet.update_cell(row_index, hts_col, hts)
-                except Exception as e:
-                    st.error(f"Error updating row for SKU {updated['SKUID']}: {e}")
+                    response = requests.get(img_url, timeout=3)
+                    if response.status_code == 200:
+                        img = Image.open(BytesIO(response.content))
+                        st.image(img, width=50)
+                    else:
+                        st.markdown("No Image")
+                except:
+                    st.markdown("No Image")
+            else:
+                st.markdown("No Image")
 
-            st.success("✅ All updates saved successfully.")
+        if submit_box:
+            if country == "Select...":
+                st.warning(f"Please select country for SKU {row['SKUID']}")
+                rows_to_keep.append(row)
+                continue
+            if not hts.isdigit() or len(hts) != 10:
+                st.warning(f"HTS Code for SKU {row['SKUID']} must be exactly 10 digits")
+                rows_to_keep.append(row)
+                continue
 
-    except Exception as e:
-        st.error(f"Dashboard error: {e}")
+            try:
+                row_index = i + 2
+                country_col = st.session_state.headers.index("CountryofOrigin") + 1
+                hts_col = st.session_state.headers.index("HTSCode") + 1
+                st.session_state.worksheet.update_cell(row_index, country_col, country)
+                st.session_state.worksheet.update_cell(row_index, hts_col, hts)
+                st.success(f"✅ Submitted SKU {row['SKUID']}")
+            except Exception as e:
+                st.error(f"Error saving SKU {row['SKUID']}: {e}")
+                rows_to_keep.append(row)
+        else:
+            rows_to_keep.append(row)
 
+    # Update session state with remaining rows
+    st.session_state.vendor_df = pd.DataFrame(rows_to_keep).reset_index(drop=True)
+
+# Login
 def login_page():
     st.title("🌍 Product Origin Data Collection")
     params = st.query_params
@@ -198,6 +216,7 @@ def login_page():
         else:
             st.error("Please enter a Vendor ID")
 
+# Main app
 def main():
     if not st.session_state.logged_in:
         login_page()
