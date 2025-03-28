@@ -10,7 +10,30 @@ from io import BytesIO
 # Streamlit page setup
 st.set_page_config(page_title="Product Origin Data Collection", page_icon="🌍", layout="wide")
 
-# Google API scopes
+# Custom CSS to center-align fields and tidy UI
+st.markdown("""
+    <style>
+        div[data-testid="column"] > div {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .block-container {
+            padding-top: 1rem;
+        }
+        .stSelectbox label, .stTextInput label {
+            display: none;
+        }
+        .stSelectbox div[data-baseweb="select"] {
+            margin: 0 auto;
+        }
+        .stTextInput input {
+            text-align: center;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Google Sheets access scopes
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
@@ -24,7 +47,7 @@ if "current_vendor" not in st.session_state:
 if "google_connected" not in st.session_state:
     st.session_state.google_connected = False
 
-# Connect to Google Sheets
+# Google Sheets connection
 def get_google_sheets_connection():
     try:
         credentials = Credentials.from_service_account_info(
@@ -39,9 +62,9 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
-# Vendor Dashboard (tabular layout)
+# Vendor dashboard
 def vendor_dashboard(vendor_id):
-    st.title(f"Mar-Co Clay Products, Inc. ({vendor_id})")
+    st.title(f"Vendor ID: {vendor_id}")
     st.markdown("Please complete the form and email the saved CSV file back to **tmunshi@siteone.com**.")
     st.markdown("---")
 
@@ -68,6 +91,7 @@ def vendor_dashboard(vendor_id):
             return
 
         all_countries = sorted([f"{c.alpha_2} - {c.name}" for c in pycountry.countries])
+        dropdown_options = ["Select..."] + all_countries
 
         st.markdown("""
         **Instructions:**
@@ -79,7 +103,7 @@ def vendor_dashboard(vendor_id):
         st.markdown("---")
         updated_rows = []
 
-        # Header row
+        # Table headers
         cols = st.columns([1.2, 1.2, 1.5, 3, 2.5, 2])
         with cols[0]: st.markdown("**Image**")
         with cols[1]: st.markdown("**SKU**")
@@ -111,27 +135,27 @@ def vendor_dashboard(vendor_id):
             with cols[3]: st.text(str(row.get("ProductName", "")))
 
             with cols[4]:
-                default_country = str(row.get("CountryofOrigin", ""))
-                country_selected = st.selectbox(
+                current_country = row.get("CountryofOrigin", "")
+                selected = st.selectbox(
                     label="",
-                    options=all_countries,
-                    index=all_countries.index(default_country) if default_country in all_countries else 0,
+                    options=dropdown_options,
+                    index=dropdown_options.index(current_country) if current_country in dropdown_options else 0,
                     key=f"country_{i}"
                 )
 
             with cols[5]:
-                default_hts = str(row.get("HTSCode", "")).zfill(10)
+                default_hts = str(row.get("HTSCode", ""))
                 hts_code = st.text_input(
                     label="",
-                    value=default_hts if default_hts.isdigit() else "",
+                    value=default_hts if default_hts.isdigit() and len(default_hts) == 10 else "",
                     key=f"hts_{i}",
                     max_chars=10,
-                    help="Enter 10-digit HTS Code with no periods. Use 0s if fewer digits."
+                    help="Enter 10-digit HTS Code. Use trailing 0s if fewer digits."
                 )
 
             updated_rows.append({
                 **row,
-                "CountryofOrigin": country_selected,
+                "CountryofOrigin": selected,
                 "HTSCode": hts_code,
                 "_row_index": i
             })
@@ -141,31 +165,33 @@ def vendor_dashboard(vendor_id):
             headers = worksheet_data[0]
 
             for updated in updated_rows:
-                row_index = updated["_row_index"] + 2  # gspread is 1-based, +1 for header
+                row_index = updated["_row_index"] + 2  # gspread uses 1-based index
                 new_country = updated["CountryofOrigin"]
                 new_hts = updated["HTSCode"]
 
+                if new_country == "Select...":
+                    st.warning(f"⚠️ Missing country for SKU {updated['SKUID']}")
+                    continue
                 if not new_hts.isdigit() or len(new_hts) != 10:
-                    st.warning(f"⚠️ Invalid HTS Code for SKU {updated['SKUID']}: Must be 10 digits")
+                    st.warning(f"⚠️ Invalid HTS Code for SKU {updated['SKUID']}")
                     continue
 
                 try:
                     country_col = headers.index("CountryofOrigin") + 1
                     hts_col = headers.index("HTSCode") + 1
-
                     worksheet.update_cell(row_index, country_col, new_country)
                     worksheet.update_cell(row_index, hts_col, new_hts)
                 except Exception as e:
-                    st.error(f"Error updating row for SKU {updated['SKUID']}: {e}")
+                    st.error(f"Error updating SKU {updated['SKUID']}: {e}")
 
-            st.success("✅ All updates have been saved to the spreadsheet.")
+            st.success("✅ All updates have been saved.")
             result_df = pd.DataFrame(updated_rows)[["SKUID", "ProductName", "CountryofOrigin", "HTSCode"]]
             st.dataframe(result_df)
 
     except Exception as e:
-        st.error(f"Error during dashboard execution: {e}")
+        st.error(f"Dashboard error: {e}")
 
-# Login Page
+# Login page
 def login_page():
     st.title("🌍 Product Origin Data Collection")
 
