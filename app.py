@@ -315,6 +315,7 @@ def get_google_sheets_connection():
 
 # --- Enhanced SiteOne Header Component ---
 def render_header(vendor_name, vendor_id=None):
+    header_info = ""
     if vendor_id:
         header_info = f"""
         <div class="header-vendor-info">
@@ -673,10 +674,13 @@ def admin_dashboard():
     else:
         df = st.session_state.admin_data
     
-    # Calculate overall completion stats
+    # Calculate overall completion stats - FIXED to check both fields
     total_items = len(df)
-    completed_items = len(df[(df["CountryofOrigin"].notna() & df["CountryofOrigin"] != "") & 
-                          (df["HTSCode"].notna() & df["HTSCode"] != "")])
+    # Check both Country of Origin and HTS Code fields are filled
+    completed_items = len(df[
+        (df["CountryofOrigin"].notna() & (df["CountryofOrigin"] != "")) & 
+        (df["HTSCode"].notna() & (df["HTSCode"] != ""))
+    ])
     completion_percentage = (completed_items / total_items * 100) if total_items > 0 else 0
     
     # Display overall progress gauge at the top
@@ -695,12 +699,14 @@ def admin_dashboard():
     # Display progress by vendor
     st.markdown("<h1 class='admin-dashboard-title'>Progress by Vendor</h1>", unsafe_allow_html=True)
     
-    # Group by vendor
+    # Group by vendor - FIXED to check both fields
     vendor_stats = []
     for vendor_name, vendor_data in df.groupby("PrimaryVendorName"):
         total_vendor_items = len(vendor_data)
-        completed_vendor_items = len(vendor_data[(vendor_data["CountryofOrigin"].notna() & vendor_data["CountryofOrigin"] != "") & 
-                                         (vendor_data["HTSCode"].notna() & vendor_data["HTSCode"] != "")])
+        completed_vendor_items = len(vendor_data[
+            (vendor_data["CountryofOrigin"].notna() & (vendor_data["CountryofOrigin"] != "")) & 
+            (vendor_data["HTSCode"].notna() & (vendor_data["HTSCode"] != ""))
+        ])
         vendor_completion = (completed_vendor_items / total_vendor_items * 100) if total_vendor_items > 0 else 0
         
         vendor_stats.append({
@@ -763,12 +769,14 @@ def admin_dashboard():
     
     # Check if TaxPathOwner column exists
     if "TaxPathOwner" in df.columns:
-        # Group by TaxPathOwner
+        # Group by TaxPathOwner - FIXED to check both fields
         tax_path_stats = []
         for tax_path_owner, tax_path_data in df.groupby("TaxPathOwner"):
             total_tax_path_items = len(tax_path_data)
-            completed_tax_path_items = len(tax_path_data[(tax_path_data["CountryofOrigin"].notna() & tax_path_data["CountryofOrigin"] != "") & 
-                                                (tax_path_data["HTSCode"].notna() & tax_path_data["HTSCode"] != "")])
+            completed_tax_path_items = len(tax_path_data[
+                (tax_path_data["CountryofOrigin"].notna() & (tax_path_data["CountryofOrigin"] != "")) & 
+                (tax_path_data["HTSCode"].notna() & (tax_path_data["HTSCode"] != ""))
+            ])
             tax_path_completion = (completed_tax_path_items / total_tax_path_items * 100) if total_tax_path_items > 0 else 0
             
             # Get all vendors for this TaxPathOwner
@@ -831,8 +839,10 @@ def admin_dashboard():
                 for vendor_name in owner_data['vendors']:
                     vendor_items = df[(df["TaxPathOwner"] == owner_data['owner']) & (df["PrimaryVendorName"] == vendor_name)]
                     vendor_total = len(vendor_items)
-                    vendor_completed = len(vendor_items[(vendor_items["CountryofOrigin"].notna() & vendor_items["CountryofOrigin"] != "") & 
-                                                    (vendor_items["HTSCode"].notna() & vendor_items["HTSCode"] != "")])
+                    vendor_completed = len(vendor_items[
+                        (vendor_items["CountryofOrigin"].notna() & (vendor_items["CountryofOrigin"] != "")) & 
+                        (vendor_items["HTSCode"].notna() & (vendor_items["HTSCode"] != ""))
+                    ])
                     vendor_completion = (vendor_completed / vendor_total * 100) if vendor_total > 0 else 0
                     
                     vendor_completions.append({
@@ -911,6 +921,7 @@ def login_page():
         vendor_id = params["vendor"]
         st.session_state.logged_in = True
         st.session_state.current_vendor = vendor_id
+        st.session_state.is_admin = False
         st.rerun()
     
     # Two login options
