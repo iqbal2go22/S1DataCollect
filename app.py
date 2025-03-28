@@ -736,22 +736,7 @@ def admin_dashboard():
         
         st.plotly_chart(fig, use_container_width=True)
     
-    # Display vendor cards with detailed stats
-    cols = st.columns(3)
-    for i, vendor in enumerate(vendor_stats):
-        with cols[i % 3]:
-            st.markdown(f"""
-            <div class="admin-card">
-                <h3>{vendor['vendor_name']}</h3>
-                <div class="admin-stat-box">
-                    <div class="admin-stat-title">Completion</div>
-                    <div class="admin-stat-value">{int(vendor['completion_percentage'])}%</div>
-                </div>
-                <p style="text-align: center; margin-top: 10px;">
-                    {vendor['completed_items']} of {vendor['total_items']} items completed
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+
     
     # Display progress by TaxPathOwner
     # Display progress by TaxPathOwner
