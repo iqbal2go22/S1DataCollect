@@ -17,17 +17,26 @@ SITEONE_DARK_GREEN = "#3e6023"
 SITEONE_GRAY = "#f2f2f2"
 SITEONE_DARK_GRAY = "#333333"
 
-# Set page config
+# Set page config with no menu and full width
 st.set_page_config(
     page_title="Product Origin Data Collection", 
     page_icon="🌍", 
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
+    menu_items=None  # Remove the menu
 )
 
 # --- Custom CSS ---
 st.markdown(f"""
     <style>
+        /* Hide the gray top bar and other Streamlit UI elements */
+        #MainMenu {{visibility: hidden;}}
+        header {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+        .css-18e3th9 {{padding-top: 0 !important;}}
+        .css-1d391kg {{padding-top: 0 !important;}}
+        .block-container {{padding-top: 0 !important; max-width: 100% !important;}}
+        
         /* Main theme colors */
         :root {{
             --siteone-green: {SITEONE_GREEN};
@@ -37,21 +46,22 @@ st.markdown(f"""
             --siteone-dark-gray: {SITEONE_DARK_GRAY};
         }}
         
-        /* Main container styling */
-        .block-container {{
-            padding-top: 0 !important;
-        }}
-        
-        /* Header styling */
+        /* Enhanced Header styling */
         .siteone-header {{
             background-color: var(--siteone-green);
             color: white;
-            padding: 1rem 2rem;
+            padding: 1.2rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
             border-bottom: 5px solid var(--siteone-light-green);
+            width: 100%;
+        }}
+        
+        .header-logo {{
+            display: flex;
+            align-items: center;
         }}
         
         .header-vendor-info {{
@@ -59,9 +69,10 @@ st.markdown(f"""
         }}
         
         .header-vendor-name {{
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             margin: 0;
+            margin-bottom: 5px;
         }}
         
         .header-vendor-id {{
@@ -233,9 +244,9 @@ if "submitted_skus" not in st.session_state:
     st.session_state.submitted_skus = set()
 
 # --- SiteOne Logo Base64 ---
-# This is a placeholder - replace with the actual base64 encoded SiteOne logo
+# Replace this with your actual SiteOne logo - this is a placeholder
 SITEONE_LOGO = """
-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
+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
 """
 
 # --- HTML/CSS-based gauge function ---
@@ -268,12 +279,12 @@ def get_google_sheets_connection():
         st.error(f"Google Sheets connection error: {e}")
         return None
 
-# --- SiteOne Header Component ---
+# --- Enhanced SiteOne Header Component ---
 def render_header(vendor_name, vendor_id):
     st.markdown(f"""
     <div class="siteone-header">
         <div class="header-logo">
-            <img src="data:image/png;base64,{SITEONE_LOGO}" alt="SiteOne Logo" height="50">
+            <img src="data:image/png;base64,{SITEONE_LOGO}" alt="SiteOne Logo" height="60">
         </div>
         <div class="header-vendor-info">
             <p class="header-vendor-name">{vendor_name}</p>
@@ -439,8 +450,7 @@ def vendor_dashboard(vendor_id):
         with cols[2]: st.markdown(str(row.get("SKUID", "")))
         with cols[3]: st.markdown(str(row.get("SiteOneItemNumber", "")))
         with cols[4]: st.markdown(str(row.get("ProductName", "")))
-
-        with cols[5]:
+with cols[5]:
             country = st.selectbox(
                 label="",
                 options=dropdown_options,
