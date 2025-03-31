@@ -300,6 +300,7 @@ if "admin_data" not in st.session_state:
 
 # --- Connect to Google Sheets ---
 def get_google_sheets_connection():
+    st.write("Trying to connect to Google Sheets...")
     try:
         credentials = Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
@@ -310,6 +311,7 @@ def get_google_sheets_connection():
         return client
     except Exception as e:
         st.session_state.google_connected = False
+        st.write("Connection error details:", e)
         st.error(f"Google Sheets connection error: {e}")
         return None
 
@@ -381,6 +383,9 @@ def render_admin_gauge(title, percentage, items_complete, total_items):
 # --- Vendor Form ---
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
+
+    st.write("Vendor ID received:", vendor_id)
+
     
     # Load data if not already loaded
     if "vendor_df" not in st.session_state or st.session_state.vendor_df is None:
@@ -388,9 +393,13 @@ def vendor_dashboard(vendor_id):
         if not client:
             return
 
-        spreadsheet = client.open(st.secrets["spreadsheet_name"])
+        st.write("Trying to open spreadsheet:", st.secrets["spreadsheet_name"])
+
+        spreadsheet = client.open_by_key(st.secrets["spreadsheet_name"])
         worksheet = spreadsheet.worksheet("Sheet1")
         data = worksheet.get_all_records()
+        st.write("Rows loaded from sheet:", len(data))
+
         if not data:
             st.warning("Sheet1 is empty.")
             return
@@ -648,6 +657,8 @@ def admin_dashboard():
     if st.session_state.admin_data is None:
         with st.spinner("Loading data..."):
             client = get_google_sheets_connection()
+            st.write("Google client connected:", client is not None)
+
             if not client:
                 return
 
