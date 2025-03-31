@@ -300,7 +300,7 @@ if "admin_data" not in st.session_state:
 
 # --- Connect to Google Sheets ---
 def get_google_sheets_connection():
-    st.write("Trying to connect to Google Sheets...")
+    # st.write("Trying to connect to Google Sheets...")
     try:
         credentials = Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
