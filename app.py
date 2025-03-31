@@ -384,7 +384,7 @@ def render_admin_gauge(title, percentage, items_complete, total_items):
 def vendor_dashboard(vendor_id):
     vendor_id = vendor_id.strip().upper()
 
-    st.write("Vendor ID received:", vendor_id)
+    # st.write("Vendor ID received:", vendor_id)
 
     
     # Load data if not already loaded
@@ -393,12 +393,12 @@ def vendor_dashboard(vendor_id):
         if not client:
             return
 
-        st.write("Trying to open spreadsheet:", st.secrets["spreadsheet_name"])
+       #  st.write("Trying to open spreadsheet:", st.secrets["spreadsheet_name"])
 
         spreadsheet = client.open_by_key(st.secrets["spreadsheet_name"])
         worksheet = spreadsheet.worksheet("Sheet1")
         data = worksheet.get_all_records()
-        st.write("Rows loaded from sheet:", len(data))
+       # st.write("Rows loaded from sheet:", len(data))
 
         if not data:
             st.warning("Sheet1 is empty.")
@@ -657,7 +657,7 @@ def admin_dashboard():
     if st.session_state.admin_data is None:
         with st.spinner("Loading data..."):
             client = get_google_sheets_connection()
-            st.write("Google client connected:", client is not None)
+           # st.write("Google client connected:", client is not None)
 
             if not client:
                 return
