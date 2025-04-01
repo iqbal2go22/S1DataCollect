@@ -662,7 +662,7 @@ def admin_dashboard():
             if not client:
                 return
 
-            spreadsheet = client.open(st.secrets["spreadsheet_name"])
+            spreadsheet = client.open_by_key(st.secrets["spreadsheet_name"])
             worksheet = spreadsheet.worksheet("Sheet1")
             data = worksheet.get_all_records()
             if not data:
